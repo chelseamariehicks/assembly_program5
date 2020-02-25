@@ -31,6 +31,7 @@ descrip2		BYTE	"The list then gets sorted in ascending order and both the median
 descrip3		BYTE	"Finally, the program determines and displays the number of instances of each value in the list.", 0
 
 unsortedTitle	BYTE	"The unsorted list of randomly generated numbers is as follows...", 0
+sortedTitle		BYTE	"The sorted list of randomly generated numbers is as follows...", 0
 
 .code
 main PROC
@@ -64,6 +65,16 @@ main PROC
 	push	OFFSET array				;pass unsorted array by reference
 	push	ARRAYSIZE					;pass size of array by value
 	call	sortList
+
+;Calculate and display median value, rounded to nearest integer
+	push	OFFSET array				;pass sorted array by reference
+	push	ARRAYSIZE					;pass size of array by value
+	call	displayMedian
+;Display the list of integers after sorting with 20 numbers per line and two spaces between each
+	push	OFFSET array				;pass sorted array by reference
+	push	ARRAYSIZE					;pass size of array by value
+	push	OFFSET sortedTitle			;pass array title by reference
+	call	displayList
 
 	exit	; exit to operating system
 main ENDP
@@ -158,13 +169,29 @@ fillArray ENDP
 ; Receives: array (reference) and ARRAYSIZE (value)
 ; Returns: none
 ; Preconditions: none
-; Registers changed: 
+; Registers changed: eax, ecx
 ; Post-conditions: none
 ;------------------------------------------------------------------------
 sortList PROC 
 	push	ebp								;set up stack frame
 	mov		ebp, esp
+	mov		ecx, [ebp+8]					;ARRAYSIZE set as the counter
+	dec		ecx
+outerLoop:
+	push	ecx								;save outer loop counter
+	mov		esi, [ebp+12]					;first value in array
+innerLoop:
+	mov		eax, [esi]						;insert value in array
+	cmp		[esi+4], eax					;compare contiguous values
+	jg		nextElement						;if [esi+4] >= [esi], continue inner loop
+	xchg	eax, [esi+4]					;swap vals if first[esi] is more than latter[esi+4]
+	mov		[esi], eax					
+nextElement:
+	add		esi, 4							;point to next val in array
+	loop	innerLoop						;continue to loop to compare next two vals
 
+	pop		ecx
+	loop	outerLoop
 
 	pop		ebp
 	ret		8
@@ -173,16 +200,18 @@ sortList ENDP
 ;------------------------------------------------------------------------
 ; displayMedian 
 ;
-; 
-; Receives: 
-; Returns: 
-; Preconditions: 
+; Procedure calculates and displays the median of the sorted array 
+; Receives: array (reference) and ARRAYSIZE (value)
+; Returns: none
+; Preconditions: none
 ; Registers changed: 
-; Post-conditions: 
+; Post-conditions: none
 ;------------------------------------------------------------------------
 displayMedian PROC 
-
-	ret
+	push	ebp								;set up stack frame
+	mov		ebp, esp
+	pop		ebp
+	ret		8
 displayMedian ENDP
 
 ;------------------------------------------------------------------------
@@ -237,7 +266,9 @@ displayList	ENDP
 ; Post-conditions: 
 ;------------------------------------------------------------------------
 countList PROC 
-
+	push	ebp								;set up stack frame
+	mov		ebp, esp
+	pop		ebp
 	ret
 countList ENDP
 
