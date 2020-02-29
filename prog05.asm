@@ -22,6 +22,7 @@ HI				EQU		29				;defines global constant upper limit for values
 
 .data
 array			DWORD	ARRAYSIZE	DUP(?)
+countArray		DWORD	COUNTSIZE	DUP(?)
 
 ;messages to be printed to the screen
 progTitle		BYTE	"Generating, Sorting, and Counting Random Integers!", 0
@@ -30,11 +31,13 @@ descrip1		BYTE	"This program generates 200 random integers in the range 10-29 an
 descrip2		BYTE	"The list then gets sorted in ascending order and both the median value and sorted list are displayed.", 0
 descrip3		BYTE	"Finally, the program determines and displays the number of instances of each value in the list.", 0
 
+medianMsg		BYTE	"The median value of this array is ", 0
 unsortedTitle	BYTE	"The unsorted list of randomly generated numbers is as follows...", 0
 sortedTitle		BYTE	"The sorted list of randomly generated numbers is as follows...", 0
 
 .code
 main PROC
+	call	Randomize					;initialize sequence for random values
 
 ;Introduce the program
 	push	OFFSET progTitle			;pass strings by reference prior to proc call
@@ -48,7 +51,6 @@ main PROC
 	call	description	
 
 ;Fill array with 200 random integers with values in the range of 10-29
-	call	Randomize					;initialize sequence for random values
 	push	OFFSET array				;pass array by reference
 	push	ARRAYSIZE					;pass global constants as values
 	push	LO
@@ -69,12 +71,25 @@ main PROC
 ;Calculate and display median value, rounded to nearest integer
 	push	OFFSET array				;pass sorted array by reference
 	push	ARRAYSIZE					;pass size of array by value
+	push	OFFSET medianMsg			;pass message to screen by reference
 	call	displayMedian
+
 ;Display the list of integers after sorting with 20 numbers per line and two spaces between each
 	push	OFFSET array				;pass sorted array by reference
 	push	ARRAYSIZE					;pass size of array by value
 	push	OFFSET sortedTitle			;pass array title by reference
 	call	displayList
+
+;Count and display the number of times each valuue appears in the list of integers
+	push	OFFSET array				;pass sorted array by reference
+	push	ARRAYSIZE					;pass size of array by value
+	push	OFFSET countArray			;pass count array by reference
+	push	LO							;pass Lo by value
+	call	countList
+
+;Print farewell message to the screen
+	
+
 
 	exit	; exit to operating system
 main ENDP
@@ -203,15 +218,57 @@ sortList ENDP
 ; Procedure calculates and displays the median of the sorted array 
 ; Receives: array (reference) and ARRAYSIZE (value)
 ; Returns: none
-; Preconditions: none
-; Registers changed: 
+; Preconditions: array sorted in order
+; Registers changed: eax, ebx, edx
 ; Post-conditions: none
 ;------------------------------------------------------------------------
 displayMedian PROC 
 	push	ebp								;set up stack frame
 	mov		ebp, esp
+	mov		esi, [ebp+16]					;array address
+	mov		eax, [ebp+12]					;size of the array
+
+	;determine whether array contains an even or odd number of elements by dividing by 2
+	mov		edx, 0							;edx equal to zero before calculation, post-div will contain remainder
+	mov		ebx, 2
+	div		ebx								;divide size of array in eax by 2
+	cmp		edx, 0							;if equal to zero, no remainder and array size is even
+	je		middleAverage
+
+;find the middle value if the number of elements is odd
+middleValue:
+	mov		ebx, 4							;retrieving memory address of middle element (ARRAYSIZE/2 * 4 (DWORD))
+	mul		ebx
+	add		esi, eax						;middle value address located at beginning + distance to middle
+	mov		eax, [esi]						;place median value in eax to be printed to screen
+	jmp		printMedian		
+
+;find the average of the two middle elements when number of elements is even
+middleAverage:
+	dec		eax								;finding address of two middle elements
+	mov		ebx, 4
+	mul		ebx
+	add		esi, eax						;middle left value located at beginning + distance to ((ARRAYSIZE/2) - 1 * 4(DWORD))
+	mov		eax, [esi]						;place middle left value in eax to be used for finding avg of vals
+	mov		ebx, [esi+4]					;place middle right value in ebx to be used for finding avg of vals
+	add		eax, ebx						;find the sum of the two middle values and divide by 2
+	mov		ebx, 2			
+	mov		edx, 0
+	div		ebx
+	cmp		edx, 1							;check if there is a remainder from division
+	jne		printMedian
+	inc		eax
+
+printMedian:
+	mov		edx, OFFSET medianMsg			;print median to screen
+	call	WriteString
+	call	WriteDec
+	mov		eax, "."
+	call	WriteChar
+	call	Crlf
+
 	pop		ebp
-	ret		8
+	ret		12
 displayMedian ENDP
 
 ;------------------------------------------------------------------------
@@ -258,18 +315,18 @@ displayList	ENDP
 ;------------------------------------------------------------------------
 ; countList 
 ;
-; 
-; Receives: 
-; Returns: 
-; Preconditions: 
+; Procedure counts and displays the number of times each value appears in the array 
+; Receives: array (reference), ARRAYSIZE (value), countArray (reference), LO (value)
+; Returns: none
+; Preconditions: Para
 ; Registers changed: 
-; Post-conditions: 
+; Post-conditions: none
 ;------------------------------------------------------------------------
 countList PROC 
 	push	ebp								;set up stack frame
 	mov		ebp, esp
 	pop		ebp
-	ret
+	ret		16
 countList ENDP
 
 END main
