@@ -22,7 +22,7 @@ HI				EQU		29				;defines global constant upper limit for values
 
 .data
 array			DWORD	ARRAYSIZE	DUP(?)
-countArray		DWORD	COUNTSIZE	DUP(?)
+countArray		DWORD	COUNTSIZE	DUP(0)
 
 ;messages to be printed to the screen
 progTitle		BYTE	"Generating, Sorting, and Counting Random Integers!", 0
@@ -32,8 +32,10 @@ descrip2		BYTE	"The list then gets sorted in ascending order and both the median
 descrip3		BYTE	"Finally, the program determines and displays the number of instances of each value in the list.", 0
 
 medianMsg		BYTE	"The median value of this array is ", 0
-unsortedTitle	BYTE	"The unsorted list of randomly generated numbers is as follows...", 0
-sortedTitle		BYTE	"The sorted list of randomly generated numbers is as follows...", 0
+unsortedTitle	BYTE	"The unsorted list of randomly generated numbers is as follows: ", 0
+sortedTitle		BYTE	"The sorted list of randomly generated numbers is as follows: ", 0
+countedTitle	BYTE	"The list of instances of each randomly generated number, beginning with 10s: ", 0
+farewellMsg		BYTE	"Thanks for checking out this sorter and counter! See you again next time.", 0
 
 .code
 main PROC
@@ -84,12 +86,21 @@ main PROC
 	push	OFFSET array				;pass sorted array by reference
 	push	ARRAYSIZE					;pass size of array by value
 	push	OFFSET countArray			;pass count array by reference
+	push	COUNTSIZE					;pass size of count array by value
 	push	LO							;pass Lo by value
 	call	countList
 
-;Print farewell message to the screen
-	
+;Display the list of integers before sorting with 20 numbers per line and two spaces between each
+	push	OFFSET countArray			;pass countArray by reference
+	push	COUNTSIZE					;pass size of countArray by value
+	push	OFFSET countedTitle			;pass array title by reference
+	call	displayList
 
+;Print farewell message to the screen
+	call	Crlf
+	mov		edx, OFFSET farewellMsg		
+	call	WriteString
+	call	Crlf
 
 	exit	; exit to operating system
 main ENDP
@@ -184,7 +195,7 @@ fillArray ENDP
 ; Receives: array (reference) and ARRAYSIZE (value)
 ; Returns: none
 ; Preconditions: none
-; Registers changed: eax, ecx
+; Registers changed: eax, ebx, ecx
 ; Post-conditions: none
 ;------------------------------------------------------------------------
 sortList PROC 
@@ -199,8 +210,12 @@ innerLoop:
 	mov		eax, [esi]						;insert value in array
 	cmp		[esi+4], eax					;compare contiguous values
 	jg		nextElement						;if [esi+4] >= [esi], continue inner loop
-	xchg	eax, [esi+4]					;swap vals if first[esi] is more than latter[esi+4]
-	mov		[esi], eax					
+
+swapVals:
+	mov		ebx, [esi+4]					;swap vals if first[esi] is more than latter[esi+4]
+	mov		[esi], ebx
+	mov		[esi+4], eax
+	
 nextElement:
 	add		esi, 4							;point to next val in array
 	loop	innerLoop						;continue to loop to compare next two vals
@@ -316,17 +331,44 @@ displayList	ENDP
 ; countList 
 ;
 ; Procedure counts and displays the number of times each value appears in the array 
-; Receives: array (reference), ARRAYSIZE (value), countArray (reference), LO (value)
+; Receives: array (reference), ARRAYSIZE (value), countArray (reference), COUNTSIZE (value), LO (value)
+;			countedTitle (reference)
 ; Returns: none
-; Preconditions: Para
-; Registers changed: 
+; Preconditions: none
+; Registers changed: eax, ebx, ecx, esi, edi
 ; Post-conditions: none
 ;------------------------------------------------------------------------
 countList PROC 
 	push	ebp								;set up stack frame
 	mov		ebp, esp
+	mov		ecx, [ebp+20]					;ARRAYSIZE set as the counter
+	mov		esi, [ebp+24]					;first value in array
+	mov		edi, [ebp+16]					;first element in countArray
+	mov		ebx, [ebp+8]					;insert LO in ebx
+
+;check if element in array equals specific value in ebx, inc countArray[value-LO] if it does 
+checkEach:
+	mov		eax, [esi]						;insert value in array in eax
+	cmp		ebx, eax						;compare the element value in array to value in ebx
+	jne		nextElement						;if vals aren't equal, inc the count for the next element in countArray
+
+countInstance:	
+	mov		eax, [edi]						;increment count for that value in countArray
+	inc		eax
+	mov		[edi], eax
+	jmp		continueCheck
+
+nextElement:
+	inc		ebx								;look for next value
+	add		edi, 4							;point to next position in countArray
+	jmp		countInstance					;count the instance of this value 
+
+continueCheck:
+	add		esi, 4							;point to next val in array
+	loop	checkEach						;continue the loop until all values are checked
+
 	pop		ebp
-	ret		16
+	ret		20
 countList ENDP
 
 END main
